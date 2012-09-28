@@ -1,0 +1,800 @@
+\documentclass[serif,mathserif]{beamer}
+\usepackage{amsmath, amsfonts, epsfig, xspace, color, colortbl,natbib}
+\usepackage{algorithm,algorithmic}
+\usepackage{animate}
+%\usepackage{pstricks,pst-node}
+%\usepackage{multimedia}
+\usepackage{movie15}
+\usepackage[normal,tight,center]{subfigure}
+\setlength{\subfigcapskip}{-.5em}
+%\usepackage{beamerthemesplit}
+%\usetheme{lankton-keynote}
+
+%%%
+% PRELIMINARY FORMATTING
+%%%
+\renewcommand\sfdefault{phv}
+\renewcommand\familydefault{\sfdefault}
+\usetheme{default}
+\usepackage{color}
+\useoutertheme{default}
+\usepackage{texnansi}
+\usepackage{marvosym}
+\definecolor{bottomcolour}{rgb}{0.32,0.3,0.38}
+\definecolor{middlecolour}{rgb}{0.08,0.08,0.16}
+\definecolor{noaaturq}{RGB}{2,171,216}
+\definecolor{noaablue}{RGB}{20,21,127}
+\setbeamerfont{title}{size=\huge}
+\setbeamercolor{structure}{fg=gray}
+\setbeamertemplate{frametitle}[default]%[center]
+\setbeamercolor{normal text}{bg=black, fg=white}
+\setbeamercolor{block title}{parent=normal text, bg=noaaturq}%noaablue!60!white}
+\setbeamercolor{block body}{parent=normal text, use=block title,bg=noaablue}%block title.bg!50!black}
+\setbeamertemplate{background canvas}[vertical shading]
+[bottom=bottomcolour, middle=middlecolour, top=black]
+\setbeamertemplate{items}[circle]
+\setbeamerfont{frametitle}{size=\huge}
+\setbeamertemplate{navigation symbols}{} %no nav symbols
+\setbeamertemplate{blocks}[rounded]
+\graphicspath{{c:/users/paul.conn/git/hierarchicalDS/presentations/images/}}
+
+%\usecolortheme{seahorse}
+
+
+\begin{document}
+
+\frame{
+\centering
+\renewcommand{\baselinestretch}{1.8}\normalsize
+{\huge \textcolor{noaaturq}{Hierarchical models for wildlife transect surveys}}\\
+\bigskip\bigskip
+\renewcommand{\baselinestretch}{1.25}\normalsize
+Paul B. Conn\\
+\footnotesize \textcolor{lightgray}{{\em NOAA National Marine Mammal Laboratory\\
+Seattle, Washington}}\\
+\textcolor{lightgray}{Email: paul.conn@noaa.gov}\\
+\bigskip\bigskip
+\textcolor{lightgray}{TWS 2012\\
+Portland, OR\\
+October 17, 2012}\\	
+\vspace*{\fill}
+\begin{figure}
+%	%\subfigure{\includegraphics[height=2cm]{UAFlogo.png}}
+%	\hspace*{\fill}
+%	\subfigure{\includegraphics[height=2cm]{noaa_logo.png}}
+\hspace{\fill}
+\includegraphics[height=2cm]{NOAA-logo.pdf}
+\end{figure}
+}
+
+ \section{Outline}  % add these to see outline in slides
+
+\begin{frame}
+  \frametitle{Outline}
+  \begin{itemize}
+  \item Design-based inference \pause
+  \item Model-based inference \pause
+  \item Hierarchical modeling roadmap \pause
+  \item Simulations \pause
+  \item Seal example \pause %leave out the \pause on the final item
+  \item Extensions and future work
+  \end{itemize}
+\end{frame}
+
+\section{Introduction} % add these to see outline in slides
+
+\begin{frame}
+\frametitle{Design-based inference}
+\begin{columns}[c]
+\column{1.5in}
+Transect surveys are often used to enumerate wildlife populations
+\column{2in}
+\framebox{\includegraphics[width=6cm]{basic_pop.png}}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Design-based inference}
+\begin{columns}[c]
+\column{1.5in}
+Transect surveys are often used to enumerate wildlife populations
+\column{2in}
+\framebox{\includegraphics[width=6cm]{basic_pop_transects.png}}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Design-based inference}
+\begin{columns}[c]
+\column{1.5in}
+  \begin{block}{Design-based estimator}
+  \huge $\hat{N}=\frac{n}{P_a}$ \large \\
+  \vspace{1cm}
+  $N=$ Abundance \\
+  $n=$ \# of animals counted \\
+  $P_a=$ proportion of area sampled
+  \end{block}
+\column{2in}
+\framebox{\includegraphics[width=6cm]{basic_pop_transects.png}}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Design-based inference}
+\begin{columns}[c]
+\column{1.5in}
+If all animals are not detectable in our strip, we need to estimate detection probability, $P_d$. \vspace{.5cm}
+
+{\color{noaaturq}$\Rightarrow$ One approach: relate detectability to distance from transect line}
+\column{2in}
+\framebox{\includegraphics[width=6cm]{basic_pop_distances.png}}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Design-based inference}
+\begin{columns}[c]
+\column{1.5in}
+ \begin{block}{Distance estimator (design-based)}
+  \huge $\hat{N}=\frac{n}{P_a \hat{P}_d}$ \large \\
+  \end{block}
+  \vspace{.5 cm}
+  \begin{center}
+  \includegraphics[width=2cm]{distance_book.jpg}
+  \end{center}
+\column{2in}
+\framebox{\includegraphics[width=6cm]{basic_distance_histogram.png}}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Design-based inference}
+  Large improvements to design-based abundance estimators over the last few decades
+   \begin{itemize}
+  \item Account for multiple covariates influencing detection probability \pause
+  \item Model data from multiple observers to minimize assumption violations \pause
+  \item \color{noaaturq} Difficult to make inferences about the effects of habitat covariates
+  on underlying density (only possible with two step approach) \pause
+  \item Requires preset sampling design \pause
+  \item Requires static population \pause
+  \item Difficult to incorporate spatial or temporal autocorrelation
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Model-based inference}
+  \begin{columns}[c]
+  \column{1.5in}
+  \begin{block}{Challenges with wildlife surveys}
+    \begin{itemize}
+    \item Weather and logistics often influence
+    where sampling occurs
+    \item Abundance isn't static in time or space
+    \end{itemize}
+  \end{block}
+  \column{2in}
+  \framebox{\includegraphics[width=6cm]{heli_tracks.png}}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Model-based inference}
+    Conceptualize data collected as having arisen from two conceptually
+     distinct processes, providing a model for each:
+    \begin{itemize}
+    \item {\color{noaaturq} Process model} Describes how abundance or a surrogate
+       (density, abundance intensity) varies over time or space \pause
+    \item {\color{noaaturq} Observation model} Describes the data collection process - how underlying abundance is translated into data (realization of stochastic sampling process) \pause
+    \end{itemize}
+    {\color{noaaturq}Need to estimate the parameters of each model and predict abundance over a surface!}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Model-based inference}
+  Types of model-based analyses for animal transect data
+  \begin{columns}[t]
+  \column{1.33in}
+  \begin{block}{Thinned point process}
+    \begin{itemize}
+    \item Hedley and Buckland (\citeyear{HedleyBuckland2004})
+    \item Johnson et al. (\citeyear{JohnsonEtAl2010}), R package {\tt dspat}
+    \end{itemize}
+  \end{block}
+  \column{1.33in}
+  \begin{block}{Highfalutin Poisson GLMM}
+    \begin{itemize}
+      \item Moore and Barlow (\citeyear{MooreBarlow2011})
+      \item Chelgren et al. (\citeyear{ChelgrenEtAl2011})
+    \end{itemize}
+  \end{block}
+  \column{1.33in}
+  \begin{block}{Data augmentation}
+    \begin{itemize}
+      \item Royle and Dorazio (\citeyear{RoyleDorazio2008})
+      \item Schmidt et al. (\citeyear{SchmidtEtAl2011})
+      \item $^\dag$Conn et al. (\citeyear{ConnEtAl2012}), R package {\tt HierarchicalDS}
+    \end{itemize}
+  \end{block}
+  \end{columns}
+  $^\dag$Accounts for double observers
+\end{frame}
+
+
+
+\begin{frame}
+  \frametitle{Introduction}
+  \begin{center}
+   \framebox{\includegraphics[width=10.5cm]{Bering_ice.png}}
+   \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Introduction}
+  {\color{noaaturq}
+  An additional challenge: Partial observability and errors in species assignment
+  }
+
+  \vspace{.5cm}
+
+  \begin{columns}[c]
+  \column{3in}
+  \begin{tabular}{cccc}
+  \hline \hline
+ Obs1 & Obs2 & Distance & Group size\\
+  \hline
+ Bearded & Bearded & 1 & 2\\
+ Bearded & 0 & 5 & 1 \\
+ Bearded & Unknown & 1 & 2 \\
+ Unknown & Unknown & 2 & 3 \\
+ Unknown & Unknown & 4 & 8 \\
+ 0 & Spotted & 4 & 1 \\
+ Spotted & Bearded & 2 & 2 \\
+  \hline
+  \end{tabular}
+  \column{1in}
+  \includegraphics[width=1in]{Spotted.png}
+
+  \includegraphics[width=1in]{Bearded.png}
+  \end{columns}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Introduction}
+ \begin{block}{Model-based approaches to estimation}
+  \begin{itemize}
+    \item Inference based on {\it prediction} (e.g. on spatial surface)
+    \item Sampling design can focus on minimizing prediction error (regular placement of transects)
+        but not strictly necessary
+    \item Hierarchical extensions possible (spatial, temporal variation in abundance)
+    \item Separation of process and observation models lends itself to modular approach to model building
+  \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Introduction}
+ \begin{block}{Goals for modeling}
+  Develop hierarchical framework for line transect sampling that permits
+  \begin{itemize}
+    \item Straightforward inclusion of temporal/spatial effects on abundance
+    \item Multiple observers with possible observer dependence
+    \item Estimation of individual covariate distributions (e.g. group size)
+    \item Possible extensions for species misidentification/partial observation
+  \end{itemize}
+  \end{block}
+\end{frame}
+
+\section{Math}
+\begin{frame}
+  \frametitle{Math}
+ \begin{columns}[c]
+  \column{1.5in}
+  \begin{block}{Start by discretizing time \& space}
+  Let $D_1, D_2, \hdots, D_S$ form a partition of some area of interest, $D$.
+  \end{block}
+  \column{2in}
+   \framebox{\includegraphics[width=6cm]{partition.jpg}}
+   \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math}
+  Consider separate processes for:
+  \begin{enumerate}
+  \item Spatial and temporal dynamics of abundance at cell level {\color{noaaturq} (Process model)} \pause
+  \item Abundance in a specific transect/grid cell combination {\color{noaaturq} (Local abundance model)} \pause
+  \item Observations in a particular cell at a particular time {\color{noaaturq} (Observation model)}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math: Process model}
+  Group abundance ($G_s$) is difficult to work with
+  \begin{itemize}
+    \item integer valued \pause
+    \item dependent upon spatial support \pause
+    \item possible disconnect with observation model (later) \pause
+  \end{itemize}
+ {\color{noaaturq} $\Rightarrow$ Assume that abundance is Poisson distributed, and work with the log of abundance intensity, $\nu_{st}$:}
+ $$ G_{s} \sim {\rm Poisson}(\lambda_{s}),$$
+ $$   \lambda_{s}=A_s \exp(\nu_{s}) $$
+ where $\lambda_{s}$ gives abundance intensity in cell $s$, and $A_s$ gives area of cell $s$ proportional to mean cell area  \pause \\
+ {\color{noaaturq} $\Rightarrow$ How does $\boldsymbol{\nu}$ change over time and space?}
+ \end{frame}
+
+\begin{frame}
+  \frametitle{Math: Process model}
+    {\color{noaaturq} One possibility (implemented in R package {\it hierarchicalDS}:)}
+    $$
+    \boldsymbol{\nu} \sim {\rm Normal}({\bf X}\boldsymbol{\beta}+\boldsymbol{\eta},\tau_\nu^{-1})
+    , \hspace{2mm} {\rm where}
+    $$
+    ${\bf X}$ gives a design matrix, \\ \vspace{2mm}
+    $\boldsymbol{\beta}$ is a vector of regression coefficients, \\ \vspace{2mm}
+    $\boldsymbol{\eta}$ is a vector of spatially structured random effects (stay tuned), and \\ \vspace{2mm}
+    $\tau_\nu$ is the precision associated with overdispersion relative to the Poisson distribution.\\
+    \vspace{4mm}
+    {\color{noaaturq} Other possibilities: cellular automata, resource selection models}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Math: Local abundance model}
+    \begin{columns}[c]
+    \column{2.5in}
+      \framebox{\includegraphics[width=2.5in]{local_abundance.png}}
+    \column{2.5in}
+      \begin{itemize}
+        \item Data are partitioned into grid cell/transect combinations \pause
+        \item Area surveyed in each transect used to scale $\lambda_{s}$ to the actual area surveyed $\lambda_{st}=P_{st}\lambda_s$  \pause
+        \item Posterior predictions can be generated for areas of cells not sampled: $G_{s,-t} \sim {\rm Poisson}\left( (1-\sum_t P_{st})\lambda_{st} \right)$ \pause
+      \end{itemize}
+   \end{columns}
+   \vspace{.5in}
+   {\color{noaaturq} (Note that $P_{st}$ could also be modified to incorporate availability!)}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math: Local abundance model}
+  For areas of cells that {\it are} sampled, update abundance based on a whole bunch of things (this is where the rubber meets the road):
+      \begin{itemize}
+        \item Predicted abundance, $P_{st}\lambda_{st}$ \pause
+        \item Simultaneously estimated detection parameters (stay tuned) \pause
+        \item Individual covariate values \& distributions (stay tuned) \pause
+        \item Data augmentation with RJMCMC (e.g. Durban and Elston JABES 2005) \pause \\
+        {\color{noaaturq} $\Rightarrow$ Model unobserved animals \& their covariates probabilistically}
+      \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math: Observation model (Data, finally!)}
+        Link and Barker (2010) suggest the following observation model likelihood
+        for distance data:
+         $$
+         [G_j^{\rm obs} | G_j, p_{ij}]=
+        \left( \begin{array}{l}
+        G_j \\
+        G_j^{\rm obs}
+        \end{array} \right)
+        \prod_{i=1}^{G_j} p_{ij}^{Y_{ij}} (1-p_{ij})^{(1-Y_{ij})},
+        $$
+        where \\
+        $p_{ij}$ is the probability of observing group $i$ while surveying transect $j$ \\
+        $G_j$ is the number of animal groups in transect $j$ \\
+        $G_j^{\rm obs}$ is the number of observed groups in transect $j$
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math: Observation model (Data, finally!)}
+        For us, $p_{ij}$ is the probability that a group of animals is seen by {\it at least} one observer.  With two observers (and a probit link function):
+         $$
+        {\rm probit} \left(\begin{array}{c}
+        				p_{ij1} \\
+        				p_{ij2}
+        		\end{array}\right) = \left[\begin{array}{c}
+        				\tilde{Y}_{ij1} \\
+        				\tilde{Y}_{ij2}
+        		\end{array}\right] \sim {\rm MVN}
+        \left( \left[ \begin{array}{c}
+        				{\bf X}_{ij1}^{\rm det} \boldsymbol{\beta}^{\rm det}\\
+        				{\bf X}_{ij2}^{\rm det} \boldsymbol{\beta}^{\rm det}
+        		\end{array}\right],
+                \left[ \begin{array}{cc}
+                    1 & \rho_{ij} \\
+                    \rho_{ij} & 1
+                \end{array} \right]
+        \right),
+        $$
+        $Y_{ijk}=1$ iff $\tilde{Y}_{ijk}>0$,
+       $$
+          p_{ij} = \int_0^\infty \int_0^\infty {\rm MVN}
+            \left( \left[ \begin{array}{c}
+    				x\\
+    				y
+    		\end{array} \right]; \left[
+            \begin{array}{c}
+    				{\bf X}_{ij1}^{\rm det} \boldsymbol{\beta}^{\rm
+                    det}\\
+    				{\bf X}_{ij2}^{\rm det} \boldsymbol{\beta}^{\rm
+                    det}
+    		\end{array}\right],
+            \left[ \begin{array}{cc}
+                1 & \rho_{ij} \\
+                \rho_{ij} & 1
+            \end{array} \right]
+            \right) dx dy
+        $$
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math: Observation model (Data, finally!)}
+  Observer dependence: $\rho_{ij} =$ f(distance), with
+  y-intercept constrained to be 0 [the point independence assumption], and maximum $\le 1$.\pause
+
+  \begin{columns}[c]
+  \column{1.8in}
+  \vspace{.2cm}
+
+   In {\tt HierarchicalDS},\\
+
+   \vspace{.2cm}
+  discrete distance:
+    $$
+    \rho_{ij}=\frac{(d_{ij}-1)}{\max(d_{ij}-1)},
+    $$
+
+    \vspace{.5cm}
+  continuous distance:
+    $$
+    \rho_{ij}=\frac{d_{ij}}{\max(d_{ij})}.
+    $$
+  \column{2in}
+     \framebox{\includegraphics[width=2in]{point_indep.png}}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math: Observation model (Data, finally!)}
+  Why choose a probit model?
+  \begin{itemize}
+    \item Constrains detection probability to (0,1) \pause
+    \item Efficient Gibbs sampling (Albert \& Chib 1993 JASA). With
+        one observer,
+        $$
+        \tilde{Y}_{ijk} \sim \textrm{Normal} \left( [{\bf X}^{\rm det} \boldsymbol{\beta}^{\rm det}]_{ijk},1  \right)
+        $$
+        where $\tilde{Y}_{ijk}<0$, while $\tilde{Y}_{ijk}>0$ if $Y_{ijk}=1$.
+        {\color{noaaturq} $\Rightarrow$ Simulate $\tilde{\bf Y}$ directly using
+        truncated normal pdfs.} \pause \\
+
+        \hspace{.2cm}
+
+        $$
+        [\boldsymbol{\beta}^{\rm det}|\hdots]=\textrm{Normal}\left( ({\bf X}^\prime {\bf X})^{-1}{\bf X}^\prime \tilde{{\bf Y}},
+        ({\bf X}^\prime {\bf X})^{-1} \right).
+        $$
+
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Math: Covariate models}
+  \begin{block}{Individual covariate pdfs, $g(\theta)$, in {\tt HierarchicalDS}}
+  \begin{itemize}
+    \item Poisson
+    \item Poisson-lognormal mixture
+    \item Zero-truncated Poisson
+    \item Zero-truncated Poisson-lognormal mixture
+    \item Categorical
+    \item Normal
+  \end{itemize}
+  \end{block}
+\end{frame}
+
+
+\begin{frame}
+    \frametitle{Math: Estimation}
+    RJMCMC algorithm:
+    \begin{enumerate}
+        \item Update (add or subtract)  latent animals \pause
+            \begin{itemize}
+              \item Propose increase or decrease with probability 0.5 \pause
+              \item Propose Num to increase/decrease from U(0,a) distribution \pause
+              \item Propose individual covariate values from $g(\theta)$ \pause
+              \item Accept joint proposal according to MH ratio (posterior proportional to a product of local abundance, observation, covariate models and
+                  prior distributions) \pause
+            \end{itemize}
+        \item Update covariates for unobserved animals according to $[g(\theta)|Y=0]$ \pause
+        \item Simulate $\tilde{Y}$ values for new additions \pause
+    \end{enumerate}
+    Other parameters updated via Gibbs or Metropolis-Hastings steps
+\end{frame}
+
+\begin{frame}
+  \frametitle{RJMCMC Algorithm}
+         \begin{tabular}{ccccccc}
+        \hline \hline
+        $Y_1$ & $Y_2$ & $\tilde{Y}_1$ & $\tilde{Y}_2$ & Distance & Species & Gr size\\
+        \hline
+        1 & 1 & 2.3 & 2.0 & 1 & A & 2\\
+        1 & 0 & 1.0 & -0.4 & 3 & A & 1 \\
+        1 & 1 & 0.6 & 0.3 & 4 & A & 1 \\
+        0 & 0 & -0.5 & -0.8 & 3 & A & 2 \\
+        0 & 0 & -1.2 & -1.6 & 5 & A & 1 \\
+         \hline
+        \end{tabular}
+\end{frame}
+
+\begin{frame}
+  \frametitle{RJMCMC Algorithm}
+         \begin{tabular}{ccccccc}
+        \hline \hline
+        $Y_1$ & $Y_2$ & $\tilde{Y}_1$ & $\tilde{Y}_2$ & Distance & Species & Gr size\\
+        \hline
+        1 & 1 & 2.3 & 2.0 & 1 & A & 2\\
+        1 & 0 & 1.0 & -0.4 & 3 & A & 1 \\
+        1 & 1 & 0.6 & 0.3 & 4 & A & 1 \\
+        0 & 0 & -0.5 & -0.8 & 3 & A & 2 \\
+        0 & 0 & -1.2 & -1.6 & 5 & A & 1 \\
+        \rowcolor{noaaturq}
+        0 & 0 & NA & NA & 3 & A & 2 \\
+        \rowcolor{noaaturq}
+        0 & 0 & NA & NA & 1 & A & 1 \\
+        \rowcolor{noaaturq}
+        0 & 0 & NA & NA & 5 & A & 1 \\
+         \hline
+        \end{tabular}
+\end{frame}
+
+\begin{frame}
+  \frametitle{RJMCMC Algorithm}
+         \begin{tabular}{ccccccc}
+        \hline \hline
+        $Y_1$ & $Y_2$ & $\tilde{Y}_1$ & $\tilde{Y}_2$ & Distance & Species & Gr size\\
+        \hline
+        1 & 1 & 2.3 & 2.0 & 1 & A & 2\\
+        1 & 0 & 1.0 & -0.4 & 3 & A & 1 \\
+        1 & 1 & 0.6 & 0.3 & 4 & A & 1 \\
+        0 & 0 & -0.5 & -0.8 & 3 & A & 2 \\
+        0 & 0 & -1.2 & -1.6 & 5 & A & 1 \\
+        0 & 0 & NA & NA & \cellcolor{noaaturq} 2 & A & \cellcolor{noaaturq} 1 \\
+        0 & 0 & NA & NA & \cellcolor{noaaturq} 4 & A & \cellcolor{noaaturq} 1 \\
+        0 & 0 & NA & NA & \cellcolor{noaaturq} 5 & A & \cellcolor{noaaturq} 1 \\
+         \hline
+        \end{tabular}
+\end{frame}
+
+\begin{frame}
+  \frametitle{RJMCMC Algorithm}
+         \begin{tabular}{ccccccc}
+        \hline \hline
+        $Y_1$ & $Y_2$ & $\tilde{Y}_1$ & $\tilde{Y}_2$ & Distance & Species & Gr size\\
+        \hline
+        1 & 1 & 2.3 & 2.0 & 1 & A & 2\\
+        1 & 0 & 1.0 & -0.4 & 3 & A & 1 \\
+        1 & 1 & 0.6 & 0.3 & 4 & A & 1 \\
+        0 & 0 & -0.5 & -0.8 & 3 & A & 2 \\
+        0 & 0 & -1.2 & -1.6 & 5 & A & 1 \\
+        0 & 0 & \cellcolor{noaaturq} -0.6 & \cellcolor{noaaturq} -0.2 & 2 & A & 1 \\
+        0 & 0 & \cellcolor{noaaturq} -1.0 & \cellcolor{noaaturq} -1.8 & 4 & A & 1 \\
+        0 & 0 & \cellcolor{noaaturq} -3.7 & \cellcolor{noaaturq} -2.8 & 5 & A & 1 \\
+         \hline
+        \end{tabular}
+\end{frame}
+
+\begin{frame}
+  Well great, but how does this work in practice?
+  \begin{enumerate}
+    \item Simulated data, no spatial structure
+    \item Known population of golf tees (no spatial structure)
+    \item Simulated data (Matern process), spatial structure
+  \end{enumerate}
+\end{frame}
+
+\section{Simulations I}
+\begin{frame}
+  \frametitle{Simulated data: no spatial structure}
+  \begin{block}{Simulation study}
+  \begin{itemize}
+  \item Simulated data for two species: (a) linearly increasing trend in abundance as a function of a covariate, and (b) abundance as a quadratic function of a covariate.
+  \item Group size simulated from a zero-truncated Poisson distribution
+  \item Detection probability a function of observer (categorical), distance (categorical; 5 bins), group size (continuous), and species (categorical).
+  \item Correlation in probit-scale responses of each observer linearly increasing from 0 to a maximum of 0.5 as a function of distance
+  \item Two MCMC chains of length 270,000 with first 20,000 of each discarded as burnin
+  \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data: no spatial structure}
+  Directed, acyclic graph
+  \framebox{\includegraphics[width=3.5in]{Dag_simple}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data: no spatial structure}
+  Results: Posteriors (truth in red)
+  \framebox{\includegraphics[width=2.7in]{sim_2pop_Ests}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data: no spatial structure}
+  Results: Abundance by transect
+  \framebox{\includegraphics[width=2.7in]{sim_2pop_N_byTransect.png}}
+\end{frame}
+
+\section{Golf tees}
+\begin{frame}
+  \frametitle{Golf tee example}
+  Example II: A `real' population
+  \begin{itemize}
+  \item Known population of golf tees at University of St. Andrews
+  \item Random placement within two strata (density higher in Strata 2)
+  \item Tee clusters differed by \# of tees (Poisson distributed), color, and exposure
+  \item Surveyed by two independent groups of students using line transect design
+  \item Analyzed extensively to demonstrate distance sampling methods in several text books (Borchers et al. 2002 Estimating Animal Abundance, Laake \& Borchers chapter in Advanced Distance Sampling)
+  \item Detection probability modeled as a function of group size, tee color, exposure
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Golf tee example}
+  \begin{columns}[c]
+  \column{1.8in}
+    \begin{itemize}
+      \item Black - Yellow tees \\
+            Gray - Green tees
+      \item Square - `Exposed' \\
+            Triangle - `Not exposed' \\
+      \item Group size (1-8) - size of symbol \\
+      \item Closed - Observed \\
+      \item Open - Not observed\\
+    \end{itemize}
+  \column{2.5in}
+      \framebox{\includegraphics[width=2.5in]{golf_tee}}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Golf tee example}
+  Results: Abundance by color \& exposure (truth in red; Laake et al. estimates in blue)
+
+  \framebox{\includegraphics[width=2.5in]{golf_tee_post_N}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Golf tee example}
+  Results: True and estimated group sizes
+  \framebox{\includegraphics[width=2.5in]{golf_tee_grp_size.png}}
+\end{frame}
+
+\section{Simulations II}
+\begin{frame}
+  \frametitle{Simulated data with spatial structure}
+  Example III: Patchy population
+  \begin{itemize}
+  \item Simulated abundance on a grid using a Matern process
+  \item Transect placement determined according to a generalized random-tessellation stratified design (spatially balanced sampling)
+  \item Detection a function of distance from centerline (categorical, 5 levels), observer ID (categorical, 3 levels), and group size (continuous)
+  \item Intrinsic conditionally autoregressive (ICAR) model (Gaussian Markov Random Field)
+      used to account for spatial dependence
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data with spatial structure}
+  DAG for Example III: Patchy population
+  \framebox{\includegraphics[width=3.5in]{DAG_spatial}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data with spatial structure}
+  \begin{columns}[c]
+  \column{2in}
+  Truth \vspace{.5cm}
+
+  \framebox{\includegraphics[width=2in]{matern_truth.png}}
+  True $N=148800$
+  \column{2in}
+  Mean posterior predictions \vspace{.5cm}
+
+  \framebox{\includegraphics[width=2in]{matern_nosrr_mean.png}}
+  $\hat{N}_1=304000$,$\hat{N}_2=2418000$
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data with spatial structure}
+  Yikes!!! What happened?
+      \begin{itemize}
+        \item Model ``trying" to fit observed data
+        \item Sharp breaks in abundance only reconcilable with high variance
+            associated with spatial random effects
+        \item Multiple spatial patterns may fit the data nicely
+        \item Nothing really holding abundance back in unsampled cells
+      \end{itemize}
+      {\color{noaaturq}
+        $\Rightarrow$ Predicted abundance over the landscape biased high \\
+        $\Rightarrow$ Need to provide more structure on spatial random effects! }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data with spatial structure}
+      One approach (Hughes \& Haran ArXiv 1101.6649v1 [stat.ME]):
+      \begin{itemize}
+  \item Calculate the residual projection matrix, ${\bf P}^\bot = {\bf I}-{\bf X}({\bf X}^\prime{\bf X})^{-1}{\bf X}^\prime$.
+ \item Determine the Moran operator matrix, $\boldsymbol{\Omega}=S {\bf P}^\bot {\bf C}{\bf P}^\bot / {\rm sum}({\bf C})$.
+ \item Determine the eigenvalues, $\boldsymbol{\lambda}$, and eigenvectors, ${\bf V}$, of $\boldsymbol{\Omega}$.
+ \item Use a criterion on $\boldsymbol{\lambda}$ to limit the number of ``effective" spatial random effects.  For instance, limiting ${\bf V}$ to those for which accompanying eigenvalues are greater than $p$.
+ \item Reassemble the selected eigenvectors from ${\bf V}$ into a new, reduced dimensional matrix ${\bf K}$.
+ \item Calculate $\boldsymbol{\eta}={\bf K}\boldsymbol{\theta}$, where $[\boldsymbol{\theta}|\tau_{\eta}]= {\rm MVN}({\bf 0},{\bf K}^\prime {\bf Q} {\bf K})$.      \end{itemize}
+ \end{frame}
+
+\begin{frame}
+  \frametitle{Simulated data with spatial structure}
+  \begin{columns}
+  \column{2in}
+  Truth \vspace{.5cm}
+
+  \framebox{\includegraphics[width=2in]{matern_truth.png}}
+  True $N=148800$
+
+  \column{2in}
+  Mean posterior predictions \vspace{.5cm}
+
+  \framebox{\includegraphics[width=2in]{matern_srr8_mean.png}}
+  $\hat{N}_1=158000$,$\hat{N}_2=168000$
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Spatial prediction}
+    \begin{itemize}
+      \item Collecting covariates thought to influence animal density important!!
+      \item Example illustrates possible issues with ``estimating" abundance via posterior prediction when there are large levels of residual autocorrelation: positive bias
+      \item Spatial smoothing may help in these cases
+    \end{itemize}
+\end{frame}
+
+\section{Final bits}
+\begin{frame}
+    \frametitle{Future extensions and final thoughts}
+    \begin{itemize}
+      \item I hope I've convinced you of the utility of using hierarchical models for
+      transect data (with multiple observers or otherwise)
+      \item Lots of room left for future work!
+      \item Species misidentification
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Future extensions and final thoughts}
+    \framebox{\includegraphics[width=3in]{DAG_misID}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Acknowledgments}
+  \begin{block}{Collaborators}
+    \begin{itemize}
+        \item Method development: Devin Johnson, Jeff Laake
+        \item Spatial methods: Devin Johnson, Mevin Hooten, Jay ver Hoef
+        \item Seal data: Michael Cameron, Peter Boveng, PEP Program at NMML
+        \item Species MisID: Brett McClintock
+        \item Golf tee data: David Borchers
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}
+    \framebox{\includegraphics[width=3in]{questions}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{References}
+  \tiny
+  \bibliographystyle{plainnat}
+  \bibliography{../manuscript/master_bib}
+\end{frame}
+
+\end{document}

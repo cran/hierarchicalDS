@@ -1,0 +1,52 @@
+\begin{thebibliography}{7}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Chelgren et~al.(2011)Chelgren, Samora, Adams, and
+  Mc{C}reary]{ChelgrenEtAl2011}
+N.~D. Chelgren, B.~Samora, M.~J. Adams, and B.~Mc{C}reary.
+\newblock Using spatiotemporal models and distance sampling to map the space
+  use and abundance of newly metamorphosed western toads ({A}naxyrus boreas).
+\newblock \emph{Herpetological Conservation and Biology}, 6:\penalty0 175--190,
+  2011.
+
+\bibitem[Conn et~al.(2012)Conn, Laake, and Johnson]{ConnEtAl2012}
+P.~B. Conn, J.~L. Laake, and D.~S. Johnson.
+\newblock A hierarchical modeling framework for multiple observer transect
+  surveys.
+\newblock \emph{PLoS ONE}, 7:\penalty0 e42294, 2012.
+
+\bibitem[Hedley and Buckland(2004)]{HedleyBuckland2004}
+S.~L. Hedley and S.~T. Buckland.
+\newblock Spatial models for line transect sampling.
+\newblock \emph{Journal of Agricultural, Biological, and Environmental
+  Statistics}, 9:\penalty0 181--199, 2004.
+
+\bibitem[Johnson et~al.(2010)Johnson, Laake, and Ver~Hoef]{JohnsonEtAl2010}
+D.S. Johnson, J.L. Laake, and J.M. Ver~Hoef.
+\newblock A model-based approach for making ecological inference from distance
+  sampling data.
+\newblock \emph{Biometrics}, 66:\penalty0 310--318, 2010.
+
+\bibitem[Moore and Barlow(2011)]{MooreBarlow2011}
+J.~E. Moore and J.~Barlow.
+\newblock Bayesian state-space model of fin whale abundance trends from a
+  1991-2008 time series of line-transect surveys in the california current.
+\newblock \emph{Journal of Applied Ecology}, 48:\penalty0 1195--1205, 2011.
+
+\bibitem[Royle and Dorazio(2008)]{RoyleDorazio2008}
+J.~A. Royle and R.~M. Dorazio.
+\newblock \emph{Hierarchical {M}odeling and {I}nference in {E}cology}.
+\newblock Academic Press, London, U.K., 2008.
+
+\bibitem[Schmidt et~al.(2011)Schmidt, Rattenbury, Lawler, and
+  Maccluskie]{SchmidtEtAl2011}
+J.~H. Schmidt, K.~L. Rattenbury, J.~P. Lawler, and M.~C. Maccluskie.
+\newblock Using distance smapling and hierarchical models to improve estimates
+  of dall's sheep abundance.
+\newblock \emph{Journal of Wildlife Management}, 76:\penalty0 317--327, 2011.
+
+\end{thebibliography}
