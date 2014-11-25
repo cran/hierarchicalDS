@@ -1,3 +1,5 @@
+if(getRversion() >= "2.15.1")  utils::globalVariables(c("Easting", "Northing"))
+
 #' function to sample from a specified probability density function
 #' @param n number of samples desired
 #' @param pdf probability density function (pois1, poisson, normal, unif.disc, unif.cont)
@@ -30,7 +32,7 @@ switch_sample<-function(n,pdf,cur.par,RE){
 #' @keywords probability density
 #' @author Paul B. Conn
 switch_sample_prior<-function(pdf,cur.par){
-  require(mc2d)
+  #require(mc2d)
   switch(pdf,
          pois1=rgamma(1,cur.par[1],cur.par[2]),
          poisson=rgamma(1,cur.par[1],cur.par[2]),
@@ -164,16 +166,18 @@ generate_inits<-function(DM.hab,DM.det,G.transect,Area.trans,Area.hab,Mapping,po
            Nu=log(max(G.transect)/mean(Area.trans)*exp(rnorm(length(Area.hab)))),Eta=rnorm(length(Area.hab)),
            tau.eta=runif(1,0.5,2),tau.nu=runif(1,0.5,2))
   Par$hab[1]=mean(G.transect)/(mean(Area.trans)*mean(Area.hab))*exp(rnorm(1,0,1))
-  Par$G=exp(Par$Nu)*Area.hab*exp(rnorm(length(Par$Nu)))
+  Par$G=round(exp(Par$Nu)*Area.hab*exp(rnorm(length(Par$Nu))))
   Par$N=Par$G+rpois(length(Par$G),grp.mean*Par$G)
   if(spat.ind==1)Par$Eta=0*Par$Eta
   Par
 }
 
 #' generate initial values for misID model if not already specified by user
-#' @param DM.hab 	a list of design matrices for the habitat model (elements are named sp1,sp2, etc.)
+#' @param DM.hab.pois 	a list of design matrices for the Poisson habitat model (elements are named sp1,sp2, etc.)
+#' @param DM.hab.bern   If a hurdle model, a list of design matrices for the Bernoulli habitat model (elements are named sp1,sp2, etc.) (NULL if not hurdle)
 #' @param DM.det	design matrix for detection model
-#' @param N.hab.par  vector giving number of parameters in the habitat model for each species
+#' @param N.hab.pois.par  vector giving number of parameters in the Poisson habitat model for each species
+#' @param N.hab.bern.par  vector giving number of parameters in the Bernoulli habitat model for each species (NULL if not hurdle)
 #' @param G.transect a matrix of the number of groups of animals in area covered by each transect; each row gives a separate species		
 #' @param Area.trans	a vector giving the proportion of a strata covered by each transect
 #' @param Area.hab	a vector of the relative areas of each strata
@@ -188,7 +192,8 @@ generate_inits<-function(DM.hab,DM.det,G.transect,Area.trans,Area.hab,Mapping,po
 #' @export
 #' @keywords initial values, mcmc
 #' @author Paul B. Conn
-generate_inits_misID<-function(DM.hab,DM.det,N.hab.par,G.transect,Area.trans,Area.hab,Mapping,point.ind,spat.ind,grp.mean,misID,misID.mat,N.par.misID){		
+generate_inits_misID<-function(DM.hab.pois,DM.hab.bern,DM.det,N.hab.pois.par,N.hab.bern.par,G.transect,Area.trans,Area.hab,Mapping,point.ind,spat.ind,grp.mean,misID,misID.mat,N.par.misID){		
+  i.hurdle=1-is.null(DM.hab.bern)
   n.species=nrow(G.transect)
   n.cells=length(Area.hab)
   if(misID){
@@ -201,18 +206,29 @@ generate_inits_misID<-function(DM.hab,DM.det,N.hab.par,G.transect,Area.trans,Are
       for(itmp in 1:length(diag.mods))MisID[[diag.mods[itmp]]][1]=MisID[[diag.mods[itmp]]][1]+2 #ensure that the highest probability is for a non-misID
     }
   }
-  hab=matrix(0,n.species,max(N.hab.par))
+  hab.pois=matrix(0,n.species,max(N.hab.pois.par))
+  hab.bern=NULL
+  tau.eta.bern=NULL
+  Eta.bern=NULL
+  if(i.hurdle==1){
+    hab.bern=matrix(0,n.species,max(N.hab.bern.par))
+    tau.eta.bern=runif(n.species,0.5,2)
+    Eta.bern=matrix(rnorm(n.species*n.cells),n.species,n.cells)
+  }
   Nu=matrix(0,n.species,n.cells)
   for(isp in 1:n.species){
     Nu[isp,]=log(max(G.transect[isp,])/mean(Area.trans)*exp(rnorm(length(Area.hab),0,0.1)))
   }
-  Par=list(det=rnorm(ncol(DM.det),0,1),hab=hab,cor=ifelse(point.ind,runif(1,0,.8),0),
-           Nu=Nu,Eta=matrix(rnorm(n.species*n.cells),n.species,n.cells),
-           tau.eta=runif(n.species,0.5,2),tau.nu=runif(n.species,0.5,2),MisID=MisID)
-  Par$hab[,1]=log(apply(G.transect,1,'mean')/(mean(Area.trans)*mean(Area.hab))*exp(rnorm(n.species,0,1)))
-  Par$G=exp(Par$Nu)*Area.hab*exp(rnorm(length(Par$Nu)))
+  Par=list(det=rnorm(ncol(DM.det),0,1),hab.pois=hab.pois,hab.bern=hab.bern,cor=ifelse(point.ind,runif(1,0,.8),0),
+           Nu=Nu,Eta.pois=matrix(rnorm(n.species*n.cells),n.species,n.cells),Eta.bern=Eta.bern,
+           tau.eta.pois=runif(n.species,0.5,2),tau.eta.bern=tau.eta.bern,tau.nu=runif(n.species,0.5,2),MisID=MisID)
+  Par$hab.pois[,1]=log(apply(G.transect,1,'mean')/(mean(Area.trans)*mean(Area.hab))*exp(rnorm(n.species,0,1)))
+  Par$G=round(exp(Par$Nu)*Area.hab*exp(rnorm(length(Par$Nu))))
   for(isp in 1:n.species)Par$N[isp,]=Par$G[isp,]+rpois(n.cells,grp.mean[isp]*Par$G[isp,])
-  if(spat.ind==1)Par$Eta=0*Par$Eta
+  if(spat.ind==1){
+    Par$Eta.bern=0*Par$Eta.bern
+    Par$Eta.pois=0*Par$Eta.pois
+  }
   Par
 }
 
@@ -464,6 +480,129 @@ square_adj <- function(x){
   return(Adj)
 }
 
+#' Produce an RW1 adjacency matrix for a rectangular grid for use with areal spatial models (queens move)
+#' @param x number of cells on horizontal side of grid
+#' @param y number of cells on vertical side of grid
+#' @param byrow If TRUE, cell indices are filled along rows (default is FALSE)
+#' @return adjacency matrix
+#' @export 
+#' @keywords adjacency
+#' @author Paul Conn \email{paul.conn@@noaa.gov}
+rect_adj <- function(x,y,byrow=FALSE){
+  Ind=matrix(c(1:(x*y)),y,x,byrow=byrow)
+  if(byrow==TRUE)Ind=t(Ind)
+  n.row=nrow(Ind)
+  n.col=ncol(Ind)
+  Adj=matrix(0,x*y,x*y)
+  for(i in 1:n.row){
+    for(j in 1:n.col){
+      if(i==1 & j==1){
+        Adj[Ind[i,j],Ind[i,j]+1]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row+1]=1
+      }
+      if(i==1 & j>1 & j<n.col){
+        Adj[Ind[i,j],Ind[i,j]+1]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row+1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row+1]=1
+      }
+      if(i==1 & j==n.col){
+        Adj[Ind[i,j],Ind[i,j]+1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row+1]=1
+      }
+      if(i>1 & i<n.row & j==1){
+        Adj[Ind[i,j],Ind[i,j]+1]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row]=1
+        Adj[Ind[i,j],Ind[i,j]-1]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row-1]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row+1]=1
+      }
+      if(i>1 & i<n.row & j>1 & j<n.col){
+        cur.nums=c(Ind[i,j]-n.row-1,Ind[i,j]-n.row,Ind[i,j]-n.row+1,Ind[i,j]-1,Ind[i,j]+1,Ind[i,j]+n.row-1,Ind[i,j]+n.row,Ind[i,j]+n.row+1)
+        Adj[Ind[i,j],cur.nums]=1
+      }
+      if(i>1 & i<n.row & j==n.col){
+        Adj[Ind[i,j],Ind[i,j]+1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row]=1
+        Adj[Ind[i,j],Ind[i,j]-1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row-1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row+1]=1
+        
+      }
+      if(i==n.row & j==1){
+        Adj[Ind[i,j],Ind[i,j]+n.row]=1
+        Adj[Ind[i,j],Ind[i,j]-1]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row-1]=1
+      }
+      if(i==n.row & j>1 & j<n.col){
+        Adj[Ind[i,j],Ind[i,j]+n.row]=1
+        Adj[Ind[i,j],Ind[i,j]-1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row]=1
+        Adj[Ind[i,j],Ind[i,j]+n.row-1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row-1]=1
+      }
+      if(i==n.row & j==n.col){
+        Adj[Ind[i,j],Ind[i,j]-1]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row]=1
+        Adj[Ind[i,j],Ind[i,j]-n.row-1]=1
+      }
+    }
+  }
+  if(byrow==TRUE)Adj=t(Adj)
+  return(Adj)
+}
+
+#' Produce an RW2 Adjacency matrix for a rectangular grid for use with areal spatial models.
+#' This formulation uses cofficients inspired by a thin plate spline, as described in Rue & Held, section 3.4.2
+#' Here I'm outputting an adjacency matrix of 'neighbor weights' which makes Q construction for regular latices
+#' easy to do when not trying to make inference about all cells (i.e., one can just
+#' eliminate rows and columns associated with cells one isn't interested in and set Q=-Adj+Diag(sum(Adj)) 
+#' @param x number of cells on horizontal side of grid
+#' @param y number of cells on vertical side of grid
+#' @param byrow If TRUE, cell indices are filled along rows (default is FALSE)
+#' @return adjacency matrix
+#' @export 
+#' @keywords adjacency
+#' @author Paul Conn \email{paul.conn@@noaa.gov}
+rect_adj_RW2 <- function(x,y,byrow=FALSE){
+  cur.x=x+4  #make calculations on a larger grid and then cut off rows/columns at end
+  cur.y=y+4
+  Ind=matrix(c(1:(cur.x*cur.y)),cur.y,cur.x,byrow=byrow)
+  if(byrow==TRUE)Ind=t(Ind)
+  n.row=nrow(Ind)
+  n.col=ncol(Ind)
+  Adj=matrix(0,cur.x*cur.y,cur.x*cur.y)
+  for(i in 3:(n.row-2)){
+    for(j in 3:(n.col-2)){
+      #kings move
+      Adj[Ind[i,j],Ind[i,j]+1]=8
+      Adj[Ind[i,j],Ind[i,j]+n.row]=8
+      Adj[Ind[i,j],Ind[i,j]-n.row]=8
+      Adj[Ind[i,j],Ind[i,j]-1]=8
+      #bishops move        
+      Adj[Ind[i,j],Ind[i,j]+n.row-1]=-2
+      Adj[Ind[i,j],Ind[i,j]+n.row+1]=-2
+      Adj[Ind[i,j],Ind[i,j]-n.row-1]=-2
+      Adj[Ind[i,j],Ind[i,j]-n.row+1]=-2
+      #kings move + 1
+      Adj[Ind[i,j],Ind[i,j]+2]=-1
+      Adj[Ind[i,j],Ind[i,j]+2*n.row]=-1  
+      Adj[Ind[i,j],Ind[i,j]-2]=-1
+      Adj[Ind[i,j],Ind[i,j]-2*n.row]=-1  
+    }
+  }
+  #compile list of cells that need to be removed
+  I.rem=matrix(0,n.row,n.col)
+  I.rem[c(1,2,n.row-1,n.row),]=1
+  I.rem[,c(1,2,n.col-1,n.col)]=1
+  Adj=Adj[-which(I.rem==1),-which(I.rem==1)]
+  if(byrow==TRUE)Adj=t(Adj)
+  return(Adj)
+}
+
 #' estimate optimal 'a' parameter for linex loss function
 #' @param Pred.G  Predicted group abundance
 #' @param Obs.G	Observed group abundance
@@ -533,18 +672,7 @@ summary_N<-function(Out){
 #' The vectors of covariate values can be of different lengths because expand.grid is used to create a
 #' dataframe of all unique combinations of the distances and covariate values and the detection and related
 #' values are computed for each combination.  The covariate vector observer=1:2 is automatically included.
-#'
-#' @param x vector of perpendicular distances
-#' @param formula linear probit formula for detection using distance and other covariates
-#' @param beta parameter values
-#' @param rho maximum correlation at largest distance
-#' @param ... any number of named vectors of covariates used in the formula
-#' @return dat dataframe with distance, observer, any covariates specified in ... and detection probability p,
-#' conditional detection probability pc, dupiicate detection dup, pooled detection pool and
-#' dependence pc/p=delta.
-#' @export
-#' @author Jeff Laake
-#' @examples
+#' The folowing is too long for the examples section:
 #' test=probit.fct(0:10,~distance,c(1,-.15),.8,size=1:3)
 #' par(mfrow=c(1,2))
 #' with(test[test$observer==1,],
@@ -555,9 +683,19 @@ summary_N<-function(Out){
 #' legend(1,.2,legend=c("Detection","Conditional detection","Duplicate detection","Pooled detection"),pch=1:4,bty="n")
 #' plot(distance,delta,xlab="Distance",ylab="Dependence")
 #' })
+#' @param x vector of perpendicular distances
+#' @param formula linear probit formula for detection using distance and other covariates
+#' @param beta parameter values
+#' @param rho maximum correlation at largest distance
+#' @param ... any number of named vectors of covariates used in the formula
+#' @return dat dataframe with distance, observer, any covariates specified in ... and detection probability p,
+#' conditional detection probability pc, dupiicate detection dup, pooled detection pool and
+#' dependence pc/p=delta.
+#' @export
+#' @author Jeff Laake
 probit.fct=function(x,formula,beta,rho,...)
 {
-  require(mvtnorm)
+  #require(mvtnorm)
   #  Create dataframe and apply formula to get design matrix
   dat=expand.grid(distance=x,observer=1:2,...)
   xmat=model.matrix(formula,dat)
@@ -593,9 +731,11 @@ probit.fct=function(x,formula,beta,rho,...)
 
 #' function to convert HierarchicalDS MCMC list vector (used in estimation) into an mcmc object (cf. coda package) 
 #' @param MCMC list vector providing MCMC samples for each parameter type 
-#' @param N.hab.par see help for mcmc_ds.R
+#' @param N.hab.pois.par see help for mcmc_ds.R
+#' @param N.hab.bern.par see help for mcmc_ds.R
 #' @param Cov.par.n see help for mcmc_ds.R
-#' @param Hab.names see help for mcmc_ds.R
+#' @param Hab.pois.names see help for mcmc_ds.R
+#' @param Hab.bern.names see help for mcmc_ds.R
 #' @param Cov.names see help for mcmc_ds.R
 #' @param Det.names see help for mcmc_ds.R
 #' @param MisID.names see help for mcmc_ds.R
@@ -608,12 +748,14 @@ probit.fct=function(x,formula,beta,rho,...)
 #' @export
 #' @keywords MCMC, coda
 #' @author Paul B. Conn
-convert.HDS.to.mcmc<-function(MCMC,N.hab.par,Cov.par.n,Hab.names,Det.names,Cov.names,MisID.names,N.par.misID=NULL,misID.mat=NULL,fix.tau.nu=FALSE,misID=TRUE,spat.ind=TRUE,point.ind=TRUE){
-  require(coda)
+convert.HDS.to.mcmc<-function(MCMC,N.hab.pois.par,N.hab.bern.par,Cov.par.n,Hab.pois.names,Hab.bern.names,Det.names,Cov.names,MisID.names,N.par.misID=NULL,misID.mat=NULL,fix.tau.nu=FALSE,misID=TRUE,spat.ind=TRUE,point.ind=TRUE){
+  #require(coda)
   if(misID==TRUE & (is.null(N.par.misID)|is.null(misID.mat)))cat("\n Error: must provide N.par.misID and misID.mat whenever misID=TRUE \n")
-  n.species=nrow(MCMC$Hab)
-  n.iter=length(MCMC$Hab[1,,1])
-  n.col=n.species*2+sum(N.hab.par)+ncol(MCMC$Det)+point.ind+(1-spat.ind)*n.species+(1-fix.tau.nu)*n.species+sum(Cov.par.n)*n.species+misID*sum(N.par.misID)
+  i.ZIP=!is.na(N.hab.bern.par)[1]
+  n.species=nrow(MCMC$Hab.pois)
+  n.iter=length(MCMC$Hab.pois[1,,1])
+  n.col=n.species*2+sum(N.hab.pois.par)+ncol(MCMC$Det)+point.ind+(1-spat.ind)*n.species+(1-fix.tau.nu)*n.species+sum(Cov.par.n)*n.species+misID*sum(N.par.misID)
+  if(i.ZIP)n.col=n.col+sum(N.hab.bern.par)+(1-spat.ind)*n.species #for ZIP model
   n.cells=dim(MCMC$G)[3]
   Mat=matrix(0,n.iter,n.col)
   Mat[,1:n.species]=t(MCMC$N.tot)
@@ -625,9 +767,16 @@ convert.HDS.to.mcmc<-function(MCMC,N.hab.par,Cov.par.n,Hab.names,Det.names,Cov.n
   }
   counter=counter+n.species
   for(isp in 1:n.species){  #habitat parameters
-    Mat[,(counter+1):(counter+N.hab.par[isp])]=MCMC$Hab[isp,,1:N.hab.par[isp]]
-    col.names=c(col.names,paste("Hab.sp",isp,Hab.names[[isp]],sep=''))
-    counter=counter+sum(N.hab.par[isp])
+    Mat[,(counter+1):(counter+N.hab.pois.par[isp])]=MCMC$Hab.pois[isp,,1:N.hab.pois.par[isp]]
+    col.names=c(col.names,paste("Hab.pois.sp",isp,Hab.pois.names[[isp]],sep=''))
+    counter=counter+sum(N.hab.pois.par[isp])
+  }
+  if(i.ZIP){
+    for(isp in 1:n.species){  #habitat parameters
+      Mat[,(counter+1):(counter+N.hab.bern.par[isp])]=MCMC$Hab.bern[isp,,1:N.hab.bern.par[isp]]
+      col.names=c(col.names,paste("Hab.bern.sp",isp,Hab.bern.names[[isp]],sep=''))
+      counter=counter+sum(N.hab.bern.par[isp])
+    }   
   }
   Mat[,(counter+1):(counter+ncol(MCMC$Det))]=as.matrix(MCMC$Det)
   col.names=c(col.names,paste("Det.",Det.names,sep=''))
@@ -638,8 +787,13 @@ convert.HDS.to.mcmc<-function(MCMC,N.hab.par,Cov.par.n,Hab.names,Det.names,Cov.n
     counter=counter+1
   }
   if(spat.ind==FALSE){
-    Mat[,(counter+1):(counter+n.species)]=t(MCMC$tau.eta)
-    col.names=c(col.names,paste("tau.eta.sp",c(1:n.species),sep=''))
+    Mat[,(counter+1):(counter+n.species)]=t(MCMC$tau.eta.pois)
+    col.names=c(col.names,paste("tau.eta.pois.sp",c(1:n.species),sep=''))
+    counter=counter+n.species
+  }
+  if(spat.ind==FALSE & i.ZIP){
+    Mat[,(counter+1):(counter+n.species)]=t(MCMC$tau.eta.bern)
+    col.names=c(col.names,paste("tau.eta.bern.sp",c(1:n.species),sep=''))
     counter=counter+n.species
   }
   if(fix.tau.nu==FALSE){
@@ -682,7 +836,7 @@ convert.HDS.to.mcmc<-function(MCMC,N.hab.par,Cov.par.n,Hab.names,Det.names,Cov.n
 #' @keywords MCMC, table
 #' @author Paul B. Conn
 table.mcmc<-function(MCMC,file=NULL,type="csv",a=0.05){
-  require(xtable)
+  #require(xtable)
   Out.tab=data.frame(matrix(0,ncol(MCMC),5))
   colnames(Out.tab)=c("Parameter","Mean","Median","Lower","Upper")
   MCMC=as.matrix(MCMC)
@@ -735,10 +889,39 @@ post_loss<-function(Out,burnin=0){
   Loss
 }
 
+#' function to plot a map of abundance.  this was developed for spatio-temporal models in mind
+#' @param cur.t time step to plot
+#' @param N A vector of values to plot (e.g. abundance) 
+#' @param Grid A list of SpatialPolygonsDataFrame (one for each time step) - holding survey unit spatial information 
+#' @param highlight If provided, the rows of Grid[[cur.t]] to specially highlight
+#' @return A ggplot2 object
+#' @export
+#' @keywords Abundance map
+#' @author Paul B. Conn
+plot_N_map<-function(cur.t,N,Grid,highlight=NULL){
+  #require(rgeos)
+  Tmp=Grid[[1]]
+  if(is.null(highlight)==FALSE){
+    midpoints=data.frame(gCentroid(Tmp[highlight,],byid=TRUE))
+    colnames(midpoints)=c("Easting","Northing")
+  }
+  Abundance=N[,cur.t]
+  Cur.df=cbind(data.frame(gCentroid(Tmp,byid=TRUE)),Abundance)
+  new.colnames=colnames(Cur.df)
+  new.colnames[1:2]=c("Easting","Northing")
+  colnames(Cur.df)=new.colnames
+  p1=ggplot(Cur.df)+aes(x=Easting,y=Northing,fill=Abundance)+geom_raster()+tmp.theme
+  tmp.theme=theme(axis.ticks = element_blank(), axis.text = element_blank())
+  if(is.null(highlight)==FALSE){
+    #p1=p1+geom_rect(data=midpoints,size=0.5,fill=NA,colour="yellow",aes(xmin=Easting-25067,xmax=Easting,ymin=Northing,ymax=Northing+25067))
+    p1=p1+geom_rect(data=midpoints,size=0.5,fill=NA,colour="yellow",aes(xmin=Easting-25067/2,xmax=Easting+25067/2,ymin=Northing-25067/2,ymax=Northing+25067/2))
+  }
+  p1
+}
 
 #' MCMC output from running example in Hierarchical DS 
 #' 
-#' @name simdata 
+#' @name sim_out 
 #' @docType data 
 #' @author Paul Conn \email{paul.conn@@noaa.gov} 
 #' @keywords data 
