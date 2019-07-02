@@ -1,4 +1,4 @@
-#' Primary function for hierarchical, areal analysis of distance sampling data.  This function
+#' Primary function for hierarchical, areal analysis of distance sampling data (without movement).  This function
 #' pre-processes data and calls other functions to perform the analysis, and is the only function
 #' the user needs to call themselves. 
 #'
@@ -27,7 +27,7 @@
 #' @param Det.formula  A formula giving the model for detection probability (e.g. ~Distance+Group+Visibility+Observer). Note that
 #'				there are several "reserved" variable names.  "Distance", "Observer", "Species", and "Group" are reserved variable names.
 #' @param Cov.prior.pdf	If individual covariates are provided, this character matrix gives the form of the prior pdfs for each covariate
-#'		  current possibilities are "poisson", "pois1","poisson_ln","pois1_ln",uniform.disc","multinom","uniform.cont", or "normal".
+#'		  current possibilities are "poisson", "pois1","poisson_ln","pois1_ln", and "bernoulli".
 #'		  "pois1" is 1+x where x~poisson; "poisson_ln" and "pois1_ln" are lognormal poisson models that incorporate overdispersion.  Note
 #'        the dimension of this matrix are (# species X # of covariates)
 #' @param Cov.prior.parms	A (s X k X n) array where s is the number of species, n is the number of individual covariates (other than distance), and
@@ -36,10 +36,10 @@
 #'      in each column apply to the prior pdf itself, and are treated as fixed.  If Cov.prior.fixed=0, the model will attempt
 #'  	to estimate the posterior distribution of model parameters, given hyperpriors.  In this case, it is actually the hyperpriors
 #'      that are being specified.  For "poisson", and "pois1", it is assumed that lambda~gamma(alpha,beta), so alpha
-#' 		and beta must be supplied.  For "poisson_ln", and "pois1_ln", the model is lambda_i=exp(-sigma*Z_i+theta), so it is priors
+#' 		and beta must be supplied.  For "poisson_ln", and "pois1_ln", the model is lambda_i=exp(theta + epsilon_i), where epsilon_i has a N(0,sigma^2 distribution) so it is priors
 #' 		for theta and sigma that are specified (in that order).  Theta is assumed to have a normal(mu,s^2) distribution,
 #' 		and sigma is assumed to have a uniform(0,a) distribution; thus, priors are specified for these models as (mu,s, and a).
-#' 		For the multinomial pdf, prior parameters of the dirichlet distribution must be specified if Cov.prior.fixed=1.
+#' 		For Bernoulli covariates, the prior is assumed to be Beta(a,b), so two values must be supplied (a and b).
 #' @param Cov.prior.fixed  An indicator matrix specifying which (if any) individual covariate distributions should be fixed during estimation
 #' @param Cov.prior.n  An (# species X # indiv. covariates) matrix giving the number of parameters in each covariate pdf
 #' @param pol.eff 	For continuous distance, which polynomial degrees to model (default is c(1:2); an intercept is always estimated when "Distance" is listed in "Det.formula")
@@ -92,7 +92,9 @@
 #'  Control: A list object giving MCMC tuning parameters (which are updated if the 'adapt' alorithm is used)
 #' @export
 #' @import Matrix
-#' @keywords areal model, data augmentation, distance sampling, mcmc, reversible jump
+#' @importFrom stats runif model.matrix rbeta
+#' @concepts distance sampling
+#' @concepts hierarchical modeling
 #' @author Paul B. Conn \email{paul.conn@@noaa.gov} 
 #' @examples print("example analysis included in the script example_analysis.R")
 hierarchical_DS<-function(Dat,Adj,Area.hab=1,Mapping,Area.trans,Observers,Bin.length,Hab.cov,Obs.cov,Hab.pois.formula,Hab.bern.formula=NULL,Det.formula,detect=TRUE,Cov.prior.pdf,Cov.prior.parms,Cov.prior.fixed,Cov.prior.n,n.obs.cov=0,pol.eff=c(1:2),ZIP=FALSE,point.ind=TRUE,spat.ind=FALSE,last.ind=FALSE,cor.const=FALSE,fix.tau.nu=FALSE,srr=TRUE,srr.tol=0.5,misID=FALSE,misID.models=NULL,misID.mat=NULL,misID.symm=TRUE,Inits=NULL,grps=FALSE,M,Control,adapt=TRUE,Prior.pars,post.loss=TRUE){
@@ -124,7 +126,18 @@ hierarchical_DS<-function(Dat,Adj,Area.hab=1,Mapping,Area.trans,Observers,Bin.le
   if(ZIP==TRUE & is.null(Hab.bern.formula))cat("\n ERROR: must specify Hab.bern.formula when ZIP=TRUE \n")
   if(n.species!=length(Hab.pois.formula))cat("\n ERROR: make sure length of Hab.pois.formula list equal to the number of species \n")
   if(grps==TRUE & Cov.prior.pdf[1,1]!='pois1' & Cov.prior.pdf[1,1]!='pois1_ln')cat("\n ERROR: Cov.prior.pdf for group size needs to be zero truncated (pois1 or pois1_ln)")
-  #More later...	
+  if(n.obs.cov>0 & is.null(Obs.cov)==TRUE)cat("\n ERROR: Obs.cov must be provided if n.obs.cov>0 \n")
+
+	  #More later
+	#check Cov.prior.n
+	for(isp in 1:n.species){
+	  for(icov in 1:n.ind.cov){
+	    if(Cov.prior.pdf[isp,icov]%in%c("pois1","poisson") & Cov.prior.n[isp,icov]!=1)cat("Error: Exactly 1 parameter needed for poisson or pois1 distributed covariate \n")
+	    if(Cov.prior.pdf[isp,icov]%in%c("poisson_ln","pois1_ln") & Cov.prior.n[isp,icov]!=3)cat("Error: 3 prior parameters needed for poisson or pois1 distributed covariate \n")
+	    if(Cov.prior.pdf[isp,icov]%in%c("bernoulli") & Cov.prior.n[isp,icov]!=2)cat("Error: 2 prior parameters needed for bernoulli distributed covariate \n")
+	 	}
+	}
+	# species X # indiv. covariates
   
   #adust M to be divisible by 2
   M[which(M%%2==1)]=M[which(M%%2==1)]+1
@@ -228,7 +241,9 @@ hierarchical_DS<-function(Dat,Adj,Area.hab=1,Mapping,Area.trans,Observers,Bin.le
 				if(n.ind.cov>0){
 					Data[isp,itrans,1:nrow(Cur.dat),(6+n.obs.cov):(6+n.obs.cov+n.ind.cov-1)]=as.matrix(Cur.dat[,(6+n.obs.cov):(6+n.obs.cov+n.ind.cov-1)])
 					for(icov in 1:n.ind.cov){
-						rsamp=switch_sample(n=(M[isp,itrans]-nrow(Cur.dat))/n.Observers[itrans],pdf=Cov.prior.pdf[isp,icov],cur.par=Cov.prior.parms[isp,1:Cov.prior.n[isp,icov],icov],RE=0) 
+					  Cur.par = Cov.prior.parms[isp,1:Cov.prior.n[isp,icov],icov]
+					  if(Cov.prior.pdf[isp,icov]=="bernoulli")Cur.par =Cov.prior.parms[isp,1,icov]/sum(Cov.prior.parms[isp,1:2,icov]) #use mean of beta to start off with so we don't get too crazy of values
+						rsamp=switch_sample(n=(M[isp,itrans]-nrow(Cur.dat))/n.Observers[itrans],pdf=Cov.prior.pdf[isp,icov],cur.par=Cur.par,RE=0) 
 						Data[isp,itrans,(nrow(Cur.dat)+1):M[isp,itrans],5+n.obs.cov+icov]=rep(rsamp,each=n.Observers[itrans])
 					}
 				}
@@ -387,7 +402,11 @@ hierarchical_DS<-function(Dat,Adj,Area.hab=1,Mapping,Area.trans,Observers,Bin.le
 		for(j in 1:n.species){
 			if(Cov.prior.fixed[j,i]==1)Par$Cov.par[j,,i]=Cov.prior.parms[j,,i]
 			else{
-				temp=switch_sample_prior(Cov.prior.pdf[j,i],Cov.prior.parms[j,,i])
+			  Cur.par = Cov.prior.parms[j,1:Cov.prior.n[isp,icov],i]
+			  if(Cov.prior.pdf[isp,icov]=="bernoulli")temp = rbeta(1,Cur.par[1],Cur.par[2]) 
+        else{
+				  temp=switch_sample_prior(Cov.prior.pdf[j,i],Cov.prior.parms[j,1:Cov.prior.n[isp,icov],i])
+        }
 				Par$Cov.par[j,1:length(temp),i]=temp
 			}
 		}

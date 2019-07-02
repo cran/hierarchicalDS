@@ -6,8 +6,12 @@
 #' @param tau.pois Precision of the ICAR process for Poisson abundance
 #' @param tau.bern Precision of the ICAR process for zero inflation
 #' @return a distance sampling dataset
+#' @importFrom stats pnorm rpois
+#' @importFrom mc2d rbern
+#' @importFrom mvtnorm rmvnorm
 #' @export
-#' @keywords distance sampling, simulation
+#' @concepts distance sampling 
+#' @concepts simulation
 #' @author Paul B. Conn
 simulate_data<-function(S,Observers,ZIP=TRUE,misID=TRUE,tau.pois=15,tau.bern=20){
   #note: currently hardwired for 2 species

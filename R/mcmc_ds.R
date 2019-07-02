@@ -96,17 +96,23 @@
 #'  "Pred.det": if Meta$post.loss=TRUE, an array holding predicted detection types for posterior predictive loss calculations dim = c(n.mcmc.iter,n.transects,n.obs.types,n.obs.types)
 #' @export
 #' @import Matrix
-#' @keywords areal, data augmentation, distance sampling, mcmc, reversible jump
+#' @importFrom stats dnorm dpois median model.matrix optimize pnorm rbeta rbinom rgamma rnorm rpois runif var
+#' @importFrom mc2d rbern rdirichlet
+#' @importFrom truncnorm rtruncnorm
+#' @importFrom mvtnorm rmvnorm pmvnorm dmvnorm
+#' @concepts data augmentation
+#' @concepts distance sampling
+#' @concepts mcmc
+#' @concepts reversible jump
 #' @author Paul B. Conn
-
 mcmc_ds<-function(Par,Data,cur.iter,adapt,Control,DM.hab.pois,DM.hab.bern=NULL,DM.det,Q,Prior.pars,Meta){	
 	#require(mvtnorm)
 	#require(Matrix)
 	#require(truncnorm)
   SMALL=10^{-20}
 	Lam.index=c(1:Meta$S)
-	if(Meta$i.binned==0)dist.mult=1
-	if(Meta$i.binned==1)dist.mult=1/(Meta$n.bins-1)
+	if(Meta$i.binned==0 | Meta$n.bins==1)dist.mult=1
+	if(Meta$i.binned==1 & Meta$n.bins>1)dist.mult=1/(Meta$n.bins-1)
 	n.beta.det=ncol(DM.det)
 	n.Records=t(t(Meta$G.transect)*Meta$n.Observers)
 	grp.pl=NULL
@@ -337,7 +343,7 @@ mcmc_ds<-function(Par,Data,cur.iter,adapt,Control,DM.hab.pois,DM.hab.bern=NULL,D
 	############   Begin MCMC Algorithm ##############
 	##################################################
 	for(iiter in 1:cur.iter){
-		#cat(paste('\n ', iiter))
+		cat(paste('\n ', iiter))
 		for(isp in 1:Meta$n.species){		
 
 		  ########## update abundance parameters at the strata scale   ################
@@ -993,6 +999,15 @@ mcmc_ds<-function(Par,Data,cur.iter,adapt,Control,DM.hab.pois,DM.hab.bern=NULL,D
               }
               Par$Cov.par[isp,1:Meta$Cov.prior.n[isp,icov],icov]=rdirichlet(1,Meta$Cov.prior.parms[isp,1:Meta$Cov.prior.n[isp,icov],icov]+tabulate(factor(Cur.cov)))
             }
+            if(Meta$Cov.prior.pdf[isp,icov]=="bernoulli"){
+              Cur.cov=matrix(Data[isp,1:GT0[1],1:n.Records[isp,GT0[1]],Meta$dist.pl+icov],Meta$G.transect[isp,GT0[1]],Meta$n.Observers[GT0[1]],byrow=TRUE)[,1]
+              if(n.gt0>1){
+                for(itrans in 2:n.gt0){
+                  Cur.cov=c(Cur.cov,matrix(Data[isp,GT0[itrans],1:n.Records[isp,GT0[itrans]],Meta$dist.pl+icov],Meta$G.transect[isp,GT0[itrans]],Meta$n.Observers[GT0[itrans]],byrow=TRUE)[,1])
+                }
+              }
+              Par$Cov.par[isp,1,icov]=rbeta(1,Meta$Cov.prior.parms[isp,1,icov]+sum(Cur.cov),Meta$Cov.prior.parms[isp,2,icov]+length(Cur.cov)-sum(Cur.cov))
+            }
           }
         }
       }
@@ -1087,7 +1102,9 @@ mcmc_ds<-function(Par,Data,cur.iter,adapt,Control,DM.hab.pois,DM.hab.bern=NULL,D
                 for(icov in 1:Meta$n.ind.cov){
                   if(Meta$Cov.prior.pdf[isp,icov]=='poisson_ln' | Meta$Cov.prior.pdf[isp,icov]=='pois1_ln')cur.RE=rep(rnorm(Cur.G[isp,itrans],0,1),each=Meta$n.Observers[itrans])
                   else cur.RE=0
-                  rsamp=switch_sample(n=Cur.G[isp,itrans],pdf=Meta$Cov.prior.pdf[isp,icov],cur.par=Par$Cov.par[isp,1:Meta$Cov.prior.n[isp,icov],icov],RE=cur.RE)
+                  Cur.par = Par$Cov.par[isp,1:Meta$Cov.prior.n[isp,icov],icov]
+                  if(Meta$Cov.prior.pdf[isp,icov]=="bernoulli")Cur.par =  Par$Cov.par[isp,1,icov]
+                  rsamp=switch_sample(n=Cur.G[isp,itrans],pdf=Meta$Cov.prior.pdf[isp,icov],cur.par=Cur.par,RE=cur.RE)
                   Cur.dat[,Meta$dist.pl+icov]=rep(rsamp,each=Meta$n.Observers[itrans])
                 }
               }
@@ -1162,14 +1179,17 @@ mcmc_ds<-function(Par,Data,cur.iter,adapt,Control,DM.hab.pois,DM.hab.bern=NULL,D
     for(isp in 1:Meta$n.species)Hab.bern.names[[isp]]=colnames(DM.hab.bern[[isp]])
   }
   Det.names=colnames(get_mod_matrix(Cur.dat=matrix(Data[1,1,1,],nrow=1),Meta$stacked.names,Meta$factor.ind,Meta$Det.formula,Meta$Levels))
-	Cov.names=vector("list",Meta$n.ind.cov)
+	Cov.names=vector("list",Meta$n.species)
 	Cov.par.n=0
 	if(Meta$n.ind.cov>0){
-		for(icov in 1:Meta$n.ind.cov){
-			Par.name=switch(Meta$Cov.prior.pdf[icov],pois1_ln=c("mean.minus.1","sd"),poisson_ln=c("mean","sd"),multinom=paste("prop.cell.",c(1:(Meta$Cov.prior.n[isp,icov]-1)),sep=''),normal="mean",pois1="mean.minus.1",poisson="mean")
-			Cov.names[[icov]]=paste(Meta$stacked.names[Meta$dist.pl+icov],".",Par.name,sep='')
-			Cov.par.n=Cov.par.n+length(Cov.names[[icov]])
-		}
+	  for(isp in 1:Meta$n.species){
+	    Cov.names[[isp]]=vector("list",Meta$n.ind.cov)
+		  for(icov in 1:Meta$n.ind.cov){
+			  Par.name=switch(Meta$Cov.prior.pdf[isp,icov],pois1_ln=c("mean.minus.1","sd"),poisson_ln=c("mean","sd"),multinom=paste("prop.cell",c(1:(Meta$Cov.prior.n[isp,icov]-1)),sep=''),normal="mean",pois1="mean.minus.1",poisson="mean",bernoulli="prob.eq.1")
+			  Cov.names[[isp]][[icov]]=paste(Meta$stacked.names[Meta$dist.pl+icov],".",Par.name,".sp",isp,sep='')
+			  Cov.par.n=Cov.par.n+length(Cov.names[[isp]][[icov]])
+		  }
+	  }
 	}
 	MisID.names=NULL
 	if(Meta$misID==TRUE){
@@ -1188,7 +1208,10 @@ mcmc_ds<-function(Par,Data,cur.iter,adapt,Control,DM.hab.pois,DM.hab.bern=NULL,D
       Hab.bern.names=NA
     }
   }
-	MCMC=convert.HDS.to.mcmc(MCMC=MCMC,N.hab.pois.par=Meta$N.hab.pois.par,N.hab.bern.par=N.hab.bern.par,Cov.par.n=Cov.par.n,Hab.pois.names=Hab.pois.names,Hab.bern.names=Hab.bern.names,Det.names=Det.names,Cov.names=Cov.names,MisID.names=MisID.names,N.par.misID=Meta$N.par.misID,misID.mat=Meta$misID.mat,fix.tau.nu=Meta$fix.tau.nu,misID=Meta$misID,spat.ind=Meta$spat.ind,point.ind=Meta$point.ind)
+	#cat(MCMC$Cov.par[1,1,])
+	n.cov.cols=NULL
+	if(Meta$n.ind.cov>0)n.cov.cols=dim(Meta$Cov.prior.parms)[2]
+	MCMC=convert.HDS.to.mcmc(MCMC=MCMC,N.hab.pois.par=Meta$N.hab.pois.par,N.hab.bern.par=N.hab.bern.par,n.ind.cov=Meta$n.ind.cov,n.cov.cols=n.cov.cols,Hab.pois.names=Hab.pois.names,Hab.bern.names=Hab.bern.names,Det.names=Det.names,Cov.names=Cov.names,MisID.names=MisID.names,N.par.misID=Meta$N.par.misID,misID.mat=Meta$misID.mat,fix.tau.nu=Meta$fix.tau.nu,misID=Meta$misID,spat.ind=Meta$spat.ind,point.ind=Meta$point.ind)
 	Out=list(Post=Post,MCMC=MCMC,Accept=Accept,Control=Control,Obs.N=Obs.N,Pred.N=Pred.N,Obs.det=Obs.det,Pred.det=Pred.det)
 	Out
 }

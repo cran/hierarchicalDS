@@ -6,8 +6,9 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("Easting", "Northing"))
 #' @param cur.par a vector giving parameters for the specified distribution; only the first is used for single parameter distributions
 #' @param RE random effects, if present
 #' @return a vector of length n samples from the desired distribution 
+#' @importFrom stats rbinom rnorm rpois runif
 #' @export
-#' @keywords probability density
+#' @concepts probability density
 #' @author Paul B. Conn
 switch_sample<-function(n,pdf,cur.par,RE){
   switch(pdf,
@@ -18,7 +19,8 @@ switch_sample<-function(n,pdf,cur.par,RE){
          normal=rnorm(n,cur.par[1],cur.par[2]),
          unif.disc=sample(cur.par[1]:cur.par[2],n,replace=TRUE),
          unif.cont=runif(n,cur.par[1],cur.par[2]),
-         multinom=sample(c(1:length(cur.par)),n,replace=TRUE,prob=cur.par)
+         multinom=sample(c(1:length(cur.par)),n,replace=TRUE,prob=cur.par),
+         bernoulli=rbinom(n,1,prob=cur.par[1])
   )
 }
 
@@ -28,8 +30,10 @@ switch_sample<-function(n,pdf,cur.par,RE){
 #' @param pdf probability density function (pois1, poisson, normal, unif.disc, unif.cont)
 #' @param cur.par a vector giving parameters for the specified distribution; only the first is used for single parameter distributions
 #' @return a vector of length n samples from the desired distribution 
+#' @importFrom stats rgamma rnorm 
+#' @importFrom mc2d rdirichlet
 #' @export
-#' @keywords probability density
+#' @concepts probability density
 #' @author Paul B. Conn
 switch_sample_prior<-function(pdf,cur.par){
   #require(mc2d)
@@ -38,7 +42,8 @@ switch_sample_prior<-function(pdf,cur.par){
          poisson=rgamma(1,cur.par[1],cur.par[2]),
          pois1_ln=c(rnorm(1,cur.par[1],cur.par[2]),0.05),
          poisson_ln=c(rnorm(1,cur.par[1],cur.par[2]),0.05),
-         multinom=rdirichlet(1,cur.par)
+         multinom=rdirichlet(1,cur.par),
+         binary=rdirichlet(1,cur.par)
   )
 }
 
@@ -48,8 +53,9 @@ switch_sample_prior<-function(pdf,cur.par){
 #' @param cur.par a vector giving parameters for the specified distribution; only the first is used for single parameter distributions
 #' @param RE random effects, if present
 #' @return total log likelihood of points
+#' @importFrom stats dpois dnorm
 #' @export
-#' @keywords probability density
+#' @concepts probability density
 #' @author Paul B. Conn
 switch_pdf<-function(x,pdf,cur.par,RE){
   switch(pdf,
@@ -70,7 +76,7 @@ switch_pdf<-function(x,pdf,cur.par,RE){
 #' @param factor.ind	a vector of indicator variables (1 = factor/categorical variable, 0 = continuous variable)
 #' @return a stacked dataset
 #' @export
-#' @keywords stack data
+#' @concepts stack data
 #' @author Paul B. Conn
 stack_data<-function(Data,Obs.transect,n.transects,stacked.names,factor.ind){
   #convert from "sparse" 3-d data augmentation array to a rich 2-d dataframe for updating beta parameters 
@@ -103,7 +109,7 @@ stack_data<-function(Data,Obs.transect,n.transects,stacked.names,factor.ind){
 #' @param factor.ind  a vector of indicator variables (1 = factor/categorical variable, 0 = continuous variable)
 #' @return a stacked dataset (in matrix form)
 #' @export
-#' @keywords stack data
+#' @concepts stack data
 #' @author Paul B. Conn
 stack_data_misID<-function(Data,G.obs,g.tot.obs,n.Observers,n.transects,n.species,stacked.names,factor.ind){
   #convert from "sparse" 4-d data augmentation array to a rich 2-d dataframe for updating misID parameters 
@@ -131,8 +137,9 @@ stack_data_misID<-function(Data,G.obs,g.tot.obs,n.Observers,n.transects,n.specie
 #' @param Det.formula	a formula object
 #' @param Levels	A list object giving the number of levels for factor variables
 #' @return a design matrix
+#' @importFrom stats model.matrix
 #' @export
-#' @keywords model matrix
+#' @concepts model matrix
 #' @author Paul B. Conn
 get_mod_matrix<-function(Cur.dat,stacked.names,factor.ind,Det.formula,Levels){
   Cur.dat=as.data.frame(Cur.dat)
@@ -147,6 +154,9 @@ get_mod_matrix<-function(Cur.dat,stacked.names,factor.ind,Det.formula,Levels){
   DM
 }
 
+
+
+
 #' generate initial values for MCMC chain if not already specified by user
 #' @param DM.hab 	design matrix for habitat model
 #' @param DM.det	design matrix for detection model
@@ -158,8 +168,10 @@ get_mod_matrix<-function(Cur.dat,stacked.names,factor.ind,Det.formula,Levels){
 #' @param spat.ind  is spatial independence assumed? (TRUE/FALSE)
 #' @param grp.mean  pois1 parameter for group size
 #' @return a list of initial parameter values
+#' @importFrom stats rpois
 #' @export
-#' @keywords initial values, mcmc
+#' @concepts initial values
+#' @concepts mcmc
 #' @author Paul B. Conn
 generate_inits<-function(DM.hab,DM.det,G.transect,Area.trans,Area.hab,Mapping,point.ind,spat.ind,grp.mean){		
   Par=list(det=rnorm(ncol(DM.det),0,1),hab=rep(0,ncol(DM.hab)),cor=ifelse(point.ind,runif(1,0,.8),0),
@@ -189,8 +201,10 @@ generate_inits<-function(DM.hab,DM.det,G.transect,Area.trans,Area.hab,Mapping,po
 #' @param misID.mat a matrix specifying which elements of the misID matrix are linked to model equations
 #' @param N.par.misID a vector giving the number of parameters for each misID model (in multinomial logit space)
 #' @return a list of initial parameter values
+#' @importFrom stats rnorm runif
 #' @export
-#' @keywords initial values, mcmc
+#' @concepts initial values
+#' @concepts mcmc
 #' @author Paul B. Conn
 generate_inits_misID<-function(DM.hab.pois,DM.hab.bern,DM.det,N.hab.pois.par,N.hab.bern.par,G.transect,Area.trans,Area.hab,Mapping,point.ind,spat.ind,grp.mean,misID,misID.mat,N.par.misID){		
   i.hurdle=1-is.null(DM.hab.bern)
@@ -206,6 +220,7 @@ generate_inits_misID<-function(DM.hab.pois,DM.hab.bern,DM.det,N.hab.pois.par,N.h
       for(itmp in 1:length(diag.mods))MisID[[diag.mods[itmp]]][1]=MisID[[diag.mods[itmp]]][1]+2 #ensure that the highest probability is for a non-misID
     }
   }
+  else MisID=NULL
   hab.pois=matrix(0,n.species,max(N.hab.pois.par))
   hab.bern=NULL
   tau.eta.bern=NULL
@@ -231,6 +246,7 @@ generate_inits_misID<-function(DM.hab.pois,DM.hab.bern,DM.det,N.hab.pois.par,N.h
   }
   Par
 }
+
 
 #' Fill confusion array - one confusion matrix for each individual (DEPRECATED)
 #' @param Confuse	An 3-dimensional array, with dimensions (# of individuals, # of rows in misID.mat, # of cols of misID.mat)
@@ -340,8 +356,6 @@ get_confusion_mat<-function(Cur.dat,Beta,misID.mat,misID.models,misID.symm=TRUE,
   Confuse					
 }
 
-
-
 #' compute the first derivative of log_lambda likelihood component for Langevin-Hastings
 #' @param Mu	expected value for all cells
 #' @param Nu	current observed valus (all cells)
@@ -351,7 +365,8 @@ get_confusion_mat<-function(Cur.dat,Beta,misID.mat,misID.models,misID.symm=TRUE,
 #' @param var.nu	variance of the overdispersion process
 #' @return a gradient value
 #' @export
-#' @keywords gradient, Langevin-Hastings
+#' @concepts gradient
+#' @concepts Langevin-Hastings
 #' @author Paul B. Conn
 log_lambda_gradient<-function(Mu,Nu,Sampled,Area,N,var.nu){
   Grad=(Mu[Sampled]-Nu[Sampled])/var.nu+N-Area*exp(Nu[Sampled])
@@ -368,8 +383,9 @@ log_lambda_gradient<-function(Mu,Nu,Sampled,Area,N,var.nu){
 #' @param Sampled Index for which cells were actually sampled
 #' @param Area	Total area sampled in each sampled cell
 #' @return the log likelihood associated with the data and the current set of parameters 
+#' @importFrom stats dnorm
 #' @export
-#' @keywords log likelihood
+#' @concepts log likelihood
 #' @author Paul B. Conn
 log_lambda_log_likelihood<-function(Log.lambda,DM,Beta,Eta=0,SD,N,Sampled,Area){
   Pred.log.lam=(DM%*%Beta+Eta)[Sampled]	
@@ -381,8 +397,9 @@ log_lambda_log_likelihood<-function(Log.lambda,DM,Beta,Eta=0,SD,N,Sampled,Area){
 #' SIMULATE AN ICAR PROCESS 
 #' @param Q Precision matrix for the ICAR process
 #' @return Spatial random effects
+#' @importFrom stats rnorm
 #' @export 
-#' @keywords ICAR, simulation
+#' @concepts ICAR
 #' @author Devin Johnson
 rrw <- function(Q){
   v <- eigen(Q, TRUE)
@@ -399,7 +416,7 @@ rrw <- function(Q){
 #' @param x length of vector
 #' @return adjacency matrix
 #' @export 
-#' @keywords adjacency
+#' @concepts adjacency
 #' @author Paul Conn
 linear_adj <- function(x){
   Adj1=matrix(0,x,x)
@@ -415,7 +432,7 @@ linear_adj <- function(x){
 #' @param x number of cells on side of grid
 #' @return adjacency matrix
 #' @export 
-#' @keywords adjacency
+#' @concepts adjacency
 #' @author Paul Conn
 square_adj <- function(x){
   Ind=matrix(c(1:x^2),x,x)
@@ -486,7 +503,7 @@ square_adj <- function(x){
 #' @param byrow If TRUE, cell indices are filled along rows (default is FALSE)
 #' @return adjacency matrix
 #' @export 
-#' @keywords adjacency
+#' @concepts adjacency
 #' @author Paul Conn \email{paul.conn@@noaa.gov}
 rect_adj <- function(x,y,byrow=FALSE){
   Ind=matrix(c(1:(x*y)),y,x,byrow=byrow)
@@ -565,7 +582,7 @@ rect_adj <- function(x,y,byrow=FALSE){
 #' @param byrow If TRUE, cell indices are filled along rows (default is FALSE)
 #' @return adjacency matrix
 #' @export 
-#' @keywords adjacency
+#' @concepts adjacency
 #' @author Paul Conn \email{paul.conn@@noaa.gov}
 rect_adj_RW2 <- function(x,y,byrow=FALSE){
   cur.x=x+4  #make calculations on a larger grid and then cut off rows/columns at end
@@ -608,9 +625,10 @@ rect_adj_RW2 <- function(x,y,byrow=FALSE){
 #' @param Obs.G	Observed group abundance
 #' @param min.a Minimum value for linex 'a' parameter
 #' @param max.a Maximum value for linex 'a' parameter
-#' @return The optimal tuning parameter for linex loss function as determined by minimum sum of squares 
+#' @return The optimal tuning parameter for linex loss function as determined by minimum sum of squares
+#' @importFrom stats optimize
 #' @export
-#' @keywords linex
+#' @concepts linex loss
 #' @author Paul B. Conn
 calc_linex_a<-function(Pred.G,Obs.G,min.a=0.00001,max.a=1.0){
   Y=apply(Obs.G,2,mean)
@@ -626,8 +644,10 @@ calc_linex_a<-function(Pred.G,Obs.G,min.a=0.00001,max.a=1.0){
 #' plot 'observed' versus predicted values for abundance of each species at each transect
 #' @param Out  Output list from "mcmc_ds.R" 	
 #' @return NULL 
+#' @importFrom stats median
+#' @importFrom graphics abline legend par plot points
 #' @export
-#' @keywords diagnostics, plot
+#' @concepts diagnostics
 #' @author Paul B. Conn
 plot_obs_pred<-function(Out){
   n.species=dim(Out$Pred.N)[1]
@@ -648,8 +668,8 @@ plot_obs_pred<-function(Out){
 #' calculate parameter estimates and confidence intervals for various loss functions
 #' @param Out  Output list from "mcmc_ds.R" 	
 #' @return summary.N  list vector, with the first list index indicating species
+#' @importFrom stats median
 #' @export
-#' @keywords summary
 #' @author Paul B. Conn
 summary_N<-function(Out){
   n.species=dim(Out$Pred.N)[1]
@@ -691,6 +711,8 @@ summary_N<-function(Out){
 #' @return dat dataframe with distance, observer, any covariates specified in ... and detection probability p,
 #' conditional detection probability pc, dupiicate detection dup, pooled detection pool and
 #' dependence pc/p=delta.
+#' @importFrom stats model.matrix pnorm
+#' @importFrom mvtnorm pmvnorm
 #' @export
 #' @author Jeff Laake
 probit.fct=function(x,formula,beta,rho,...)
@@ -733,7 +755,8 @@ probit.fct=function(x,formula,beta,rho,...)
 #' @param MCMC list vector providing MCMC samples for each parameter type 
 #' @param N.hab.pois.par see help for mcmc_ds.R
 #' @param N.hab.bern.par see help for mcmc_ds.R
-#' @param Cov.par.n see help for mcmc_ds.R
+#' @param n.ind.cov see help for mcmc_ds.R
+#' @param n.cov.cols  number of columns in Cov.prior.parms matrix
 #' @param Hab.pois.names see help for mcmc_ds.R
 #' @param Hab.bern.names see help for mcmc_ds.R
 #' @param Cov.names see help for mcmc_ds.R
@@ -746,15 +769,17 @@ probit.fct=function(x,formula,beta,rho,...)
 #' @param spat.ind see help for mcmc_ds.R
 #' @param point.ind see help for mcmc_ds.R
 #' @export
-#' @keywords MCMC, coda
+#' @importFrom coda mcmc
+#' @concept coda
+#' @concept MCMC
 #' @author Paul B. Conn
-convert.HDS.to.mcmc<-function(MCMC,N.hab.pois.par,N.hab.bern.par,Cov.par.n,Hab.pois.names,Hab.bern.names,Det.names,Cov.names,MisID.names,N.par.misID=NULL,misID.mat=NULL,fix.tau.nu=FALSE,misID=TRUE,spat.ind=TRUE,point.ind=TRUE){
+convert.HDS.to.mcmc<-function(MCMC,N.hab.pois.par,N.hab.bern.par,n.ind.cov,n.cov.cols,Hab.pois.names,Hab.bern.names,Det.names,Cov.names,MisID.names,N.par.misID=NULL,misID.mat=NULL,fix.tau.nu=FALSE,misID=TRUE,spat.ind=TRUE,point.ind=TRUE){
   #require(coda)
   if(misID==TRUE & (is.null(N.par.misID)|is.null(misID.mat)))cat("\n Error: must provide N.par.misID and misID.mat whenever misID=TRUE \n")
   i.ZIP=!is.na(N.hab.bern.par)[1]
   n.species=nrow(MCMC$Hab.pois)
   n.iter=length(MCMC$Hab.pois[1,,1])
-  n.col=n.species*2+sum(N.hab.pois.par)+ncol(MCMC$Det)+point.ind+(1-spat.ind)*n.species+(1-fix.tau.nu)*n.species+sum(Cov.par.n)*n.species+misID*sum(N.par.misID)
+  n.col=n.species*2+sum(N.hab.pois.par)+ncol(MCMC$Det)+point.ind+(1-spat.ind)*n.species+(1-fix.tau.nu)*n.species+length(unlist(Cov.names))+misID*sum(N.par.misID)
   if(i.ZIP)n.col=n.col+sum(N.hab.bern.par)+(1-spat.ind)*n.species #for ZIP model
   n.cells=dim(MCMC$G)[3]
   Mat=matrix(0,n.iter,n.col)
@@ -801,13 +826,18 @@ convert.HDS.to.mcmc<-function(MCMC,N.hab.pois.par,N.hab.bern.par,Cov.par.n,Hab.p
     col.names=c(col.names,paste("tau.nu.sp",c(1:n.species),sep=''))
     counter=counter+n.species
   }
-  if(is.null(Cov.par.n)==FALSE){
-    max.par=max(Cov.par.n)
+  if(n.ind.cov>0){
+    Cov.n = Cov.names
     for(isp in 1:n.species){
-      for(ipar in 1:length(Cov.par.n)){
-        Mat[,(counter+1):(counter+Cov.par.n[ipar])]=MCMC$Cov.par[isp,,((ipar-1)*max.par+1):((ipar-1)*max.par+Cov.par.n[ipar])]
-        counter=counter+Cov.par.n[ipar]
-        col.names=c(col.names,paste("Cov.sp",isp,".",Cov.names[[ipar]],sep=''))
+      for(ipar in 1:n.ind.cov){
+        Cov.n[[isp]][[ipar]] = length(Cov.names[[isp]][[ipar]])   
+      }
+    }
+    for(isp in 1:n.species){
+      for(ipar in 1:n.ind.cov){
+        Mat[,(counter+1):(counter+Cov.n[[isp]][[ipar]])]=MCMC$Cov.par[isp,,((ipar-1)*n.cov.cols+1):((ipar-1)*n.cov.cols+Cov.n[[isp]][[ipar]])]
+        counter=counter+Cov.n[[isp]][[ipar]]
+        col.names=c(col.names,paste("Cov.",Cov.names[[isp]][[ipar]],sep=''))
       }
     }
   }
@@ -832,8 +862,10 @@ convert.HDS.to.mcmc<-function(MCMC,N.hab.pois.par,N.hab.bern.par,Cov.par.n,Hab.p
 #' @param file A file name to ouput to (including path); if null (default), outputs to screen
 #' @param type What type of table to produce (either "csv" or "tex")
 #' @param a Value to use for credible intervals.  For example, alpha=0.05 results in 95\% credible intervals
+#' @importFrom stats median
+#' @importFrom xtable xtable
+#' @importFrom utils write.csv
 #' @export
-#' @keywords MCMC, table
 #' @author Paul B. Conn
 table.mcmc<-function(MCMC,file=NULL,type="csv",a=0.05){
   #require(xtable)
@@ -860,8 +892,9 @@ table.mcmc<-function(MCMC,file=NULL,type="csv",a=0.05){
 #' @param Out Output object from running hierarchicalDS
 #' @param burnin Any additional #'s of values from beginning of chain to discard before calculating PPL statistic (default is 0)
 #' @return A matrix with posterior variance (P), sums of squares (G) for the posterior mean and median predictions (compared to Observations), and total posterior loss (D)
+#' @importFrom stats median var
 #' @export
-#' @keywords Posterior predictive loss
+#' @concepts Posterior predictive loss
 #' @author Paul B. Conn
 post_loss<-function(Out,burnin=0){
   dims.Pred=dim(Out$Pred.det)
@@ -895,8 +928,10 @@ post_loss<-function(Out,burnin=0){
 #' @param Grid A list of SpatialPolygonsDataFrame (one for each time step) - holding survey unit spatial information 
 #' @param highlight If provided, the rows of Grid[[cur.t]] to specially highlight
 #' @return A ggplot2 object
+#' @importFrom ggplot2 ggplot aes geom_raster theme element_blank geom_rect
+#' @importFrom rgeos gCentroid
 #' @export
-#' @keywords Abundance map
+#' @concepts Abundance map
 #' @author Paul B. Conn
 plot_N_map<-function(cur.t,N,Grid,highlight=NULL){
   #require(rgeos)
@@ -924,5 +959,4 @@ plot_N_map<-function(cur.t,N,Grid,highlight=NULL){
 #' @name sim_out 
 #' @docType data 
 #' @author Paul Conn \email{paul.conn@@noaa.gov} 
-#' @keywords data 
 NULL
